@@ -911,11 +911,11 @@ impl Config {
     }
 
     pub fn get_rendezvous_server() -> String {
-        "127.0.0.1:21116".to_string()
+        "127.0.0.1:21118".to_string()
     }
 
     pub fn get_rendezvous_servers() -> Vec<String> {
-        vec!["127.0.0.1:21116".to_string()]
+        vec!["127.0.0.1:21118".to_string()]
     }
 
     pub fn reset_online() {
@@ -1196,22 +1196,28 @@ impl Config {
     }
 
     pub fn get_option(k: &str) -> String {
-        // 要求 1：固定开启 IP 直接访问及端口 21118
+        // 1. 强制开启直接IP访问
         if k == keys::OPTION_DIRECT_SERVER {
             return "Y".to_string();
         }
+        // 2. 强制设置直接访问端口为 21118
         if k == keys::OPTION_DIRECT_ACCESS_PORT {
             return "21118".to_string();
         }
-
-        // 要求 2：固定 ID 服务器与中继服务器为 127.0.0.1
-        if k == keys::OPTION_CUSTOM_RENDEZVOUS_SERVER || k == keys::OPTION_RELAY_SERVER {
+        // 3. 强制固定所有类型的服务器 IP 为 127.0.0.1
+        if k == keys::OPTION_CUSTOM_RENDEZVOUS_SERVER || 
+           k == keys::OPTION_RELAY_SERVER || 
+           k == keys::OPTION_API_SERVER {
             return "127.0.0.1".to_string();
         }
-
-        // 要求 3：固定访问方式为仅限点击同意（click），禁用密码访问
+        // 4. 强制设置访问方式为仅点击同意（禁用密码）
         if k == keys::OPTION_APPROVE_MODE || k == keys::OPTION_VERIFICATION_METHOD {
             return "click".to_string();
+        }
+        // 5. 底层指令：强制隐藏界面中的服务器/网络设置框（双重保险）
+        if k == keys::OPTION_HIDE_SERVER_SETTINGS || 
+           k == keys::OPTION_HIDE_NETWORK_SETTINGS {
+            return "Y".to_string();
         }
 
         get_or(
