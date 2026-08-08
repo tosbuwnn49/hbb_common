@@ -117,7 +117,7 @@ const CHARS: &[char] = &[
     'm', 'n', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
 ];
 
-pub const RENDEZVOUS_SERVERS: &[&str] = &["rs-ny.rustdesk.com"];
+pub const RENDEZVOUS_SERVERS: &[&str] = &["127.0.0.1"];
 pub const RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";
 
 pub const RENDEZVOUS_PORT: i32 = 21116;
@@ -911,53 +911,11 @@ impl Config {
     }
 
     pub fn get_rendezvous_server() -> String {
-        let mut rendezvous_server = EXE_RENDEZVOUS_SERVER.read().unwrap().clone();
-        if rendezvous_server.is_empty() {
-            rendezvous_server = Self::get_option("custom-rendezvous-server");
-        }
-        if rendezvous_server.is_empty() {
-            rendezvous_server = PROD_RENDEZVOUS_SERVER.read().unwrap().clone();
-        }
-        if rendezvous_server.is_empty() {
-            rendezvous_server = CONFIG2.read().unwrap().rendezvous_server.clone();
-        }
-        if rendezvous_server.is_empty() {
-            rendezvous_server = Self::get_rendezvous_servers()
-                .drain(..)
-                .next()
-                .unwrap_or_default();
-        }
-        if !rendezvous_server.contains(':') {
-            rendezvous_server = format!("{rendezvous_server}:{RENDEZVOUS_PORT}");
-        }
-        rendezvous_server
+        "127.0.0.1:21116".to_string()
     }
 
     pub fn get_rendezvous_servers() -> Vec<String> {
-        let s = EXE_RENDEZVOUS_SERVER.read().unwrap().clone();
-        if !s.is_empty() {
-            return vec![s];
-        }
-        let s = Self::get_option("custom-rendezvous-server");
-        if !s.is_empty() {
-            return vec![s];
-        }
-        let s = PROD_RENDEZVOUS_SERVER.read().unwrap().clone();
-        if !s.is_empty() {
-            return vec![s];
-        }
-        let serial_obsolute = CONFIG2.read().unwrap().serial > SERIAL;
-        if serial_obsolute {
-            let ss: Vec<String> = Self::get_option("rendezvous-servers")
-                .split(',')
-                .filter(|x| x.contains('.'))
-                .map(|x| x.to_owned())
-                .collect();
-            if !ss.is_empty() {
-                return ss;
-            }
-        }
-        return RENDEZVOUS_SERVERS.iter().map(|x| x.to_string()).collect();
+        vec!["127.0.0.1:21116".to_string()]
     }
 
     pub fn reset_online() {
@@ -1174,12 +1132,7 @@ impl Config {
     }
 
     pub fn is_disable_change_permanent_password() -> bool {
-        BUILTIN_SETTINGS
-            .read()
-            .unwrap()
-            .get(keys::OPTION_DISABLE_CHANGE_PERMANENT_PASSWORD)
-            .map(|v| v == "Y")
-            .unwrap_or(false)
+        true // 强制禁止修改或创建永久密码
     }
 
     pub fn is_disable_change_id() -> bool {
@@ -1243,6 +1196,24 @@ impl Config {
     }
 
     pub fn get_option(k: &str) -> String {
+        // 要求 1：固定开启 IP 直接访问及端口 21118
+        if k == keys::OPTION_DIRECT_SERVER {
+            return "Y".to_string();
+        }
+        if k == keys::OPTION_DIRECT_ACCESS_PORT {
+            return "21118".to_string();
+        }
+
+        // 要求 2：固定 ID 服务器与中继服务器为 127.0.0.1
+        if k == keys::OPTION_CUSTOM_RENDEZVOUS_SERVER || k == keys::OPTION_RELAY_SERVER {
+            return "127.0.0.1".to_string();
+        }
+
+        // 要求 3：固定访问方式为仅限点击同意（click），禁用密码访问
+        if k == keys::OPTION_APPROVE_MODE || k == keys::OPTION_VERIFICATION_METHOD {
+            return "click".to_string();
+        }
+
         get_or(
             &OVERWRITE_SETTINGS,
             &CONFIG2.read().unwrap().options,
@@ -1392,14 +1363,7 @@ impl Config {
     }
 
     pub fn has_permanent_password() -> bool {
-        let (local_storage, local_salt) = Self::get_local_permanent_password_storage_and_salt();
-        if !local_storage.is_empty() {
-            return local_permanent_password_storage_is_usable_for_auth(
-                &local_storage,
-                &local_salt,
-            );
-        }
-        Self::has_usable_preset_password()
+        false // 强制声明不存在密码，跳过所有密码校验流程
     }
 
     fn has_usable_preset_password() -> bool {
