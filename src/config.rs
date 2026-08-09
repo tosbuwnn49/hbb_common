@@ -1212,7 +1212,7 @@ impl Config {
         }
         // 4. 强制设置访问方式为仅点击同意（禁用密码）
         if k == keys::OPTION_APPROVE_MODE || k == keys::OPTION_VERIFICATION_METHOD {
-            return "click".to_string();
+            return "accept".to_string(); // 改成 accept 即可
         }
         // 5. 底层指令：强制隐藏界面中的服务器/网络设置框（双重保险）
         if k == keys::OPTION_HIDE_SERVER_SETTINGS || 
@@ -2171,10 +2171,25 @@ impl LocalConfig {
     }
 
     pub fn get_option(k: &str) -> String {
+        // 1. 强制将 ID服务器、中继服务器和 API服务器全部指向本地
+        if k == keys::OPTION_CUSTOM_RENDEZVOUS_SERVER || k == keys::OPTION_RELAY_SERVER || k == keys::OPTION_API_SERVER {
+            return "127.0.0.1".to_string();
+        }
+        
+        // 2. 强制锁定直连端口为 21118
+        if k == keys::OPTION_DIRECT_ACCESS_PORT {
+            return "21118".to_string();
+        }
+        
+        // 3. 强制默认连接方式为“仅点击确认” (Accept)
+        if k == keys::OPTION_VERIFICATION_METHOD {
+            return "accept".to_string();
+        }
+
         get_or(
-            &OVERWRITE_LOCAL_SETTINGS,
-            &LOCAL_CONFIG.read().unwrap().options,
-            &DEFAULT_LOCAL_SETTINGS,
+            &OVERWRITE_SETTINGS,
+            &CONFIG2.read().unwrap().options,
+            &DEFAULT_SETTINGS,
             k,
         )
         .unwrap_or_default()
@@ -2797,11 +2812,15 @@ pub fn is_disable_installation() -> bool {
 // flutter: flutter/lib/common.dart -> option2bool()
 // sciter: Does not have the function, but it should be kept the same.
 pub fn option2bool(option: &str, value: &str) -> bool {
+    // 强制开启“允许 IP 直接访问”
+    if option == keys::OPTION_DIRECT_SERVER {
+        return true;
+    }
+
     if option.starts_with("enable-") {
         value != "N"
     } else if option.starts_with("allow-")
         || option == "stop-service"
-        || option == keys::OPTION_DIRECT_SERVER
         || option == "force-always-relay"
     {
         value == "Y"
